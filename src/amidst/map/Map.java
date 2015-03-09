@@ -11,34 +11,34 @@ public class Map {
 	public static Map instance = null;
 	private static final boolean START = true, END = false;
 	private FragmentManager fragmentManager;
-	
+
 	private Fragment startNode = new Fragment();
-	
+
 	private double scale = 0.25;
 	private Point2D.Double start;
-	
+
 	public int tileWidth, tileHeight;
 	public int width = 1, height = 1;
-	
+
 	private final Object resizeLock = new Object(), drawLock = new Object();
 	private AffineTransform mat;
-	
+
 	private boolean firstDraw = true;
-	
-	
-	
+
+
+
 	// TODO : This must be changed with the removal of ChunkManager
 	public Map(FragmentManager fragmentManager) {
 		this.fragmentManager = fragmentManager;
 		fragmentManager.setMap(this);
 		mat = new AffineTransform();
-		
+
 		start = new Point2D.Double();
 		addStart(0, 0);
-		
+
 		instance = this;
 	}
-	
+
 	public void resetImageLayer(int id) {
 		Fragment frag = startNode;
 		while (frag.hasNext) {
@@ -53,29 +53,29 @@ public class Map {
 			fragmentManager.repaintFragment(frag);
 		}
 	}
-	
+
 	public void draw(Graphics2D g, float time) {
 		AffineTransform originalTransform = g.getTransform();
 		if (firstDraw) {
 			firstDraw = false;
 			centerOn(0, 0);
 		}
-		
+
 		synchronized (drawLock) {
 			int size = (int) (Fragment.SIZE * scale);
 			int w = width / size + 2;
 			int h = height / size + 2;
-			
+
 			while (tileWidth <  w) addColumn(END);
 			while (tileWidth >  w) removeColumn(END);
 			while (tileHeight < h) addRow(END);
 			while (tileHeight > h) removeRow(END);
-			
+
 			while (start.x >	 0) { start.x -= size; addColumn(START); removeColumn(END);   }
 			while (start.x < -size) { start.x += size; addColumn(END);   removeColumn(START); }
 			while (start.y >	 0) { start.y -= size; addRow(START);	 removeRow(END);      }
 			while (start.y < -size) { start.y += size; addRow(END);	     removeRow(START);    }
-			
+
 			Fragment frag = startNode;
 			size = Fragment.SIZE;
 			if (frag.hasNext) {
@@ -107,7 +107,7 @@ public class Map {
 						mat.translate(-size * w, size);
 				}
 			}
-			
+
 			frag = startNode;
 			if (frag.hasNext) {
 				mat.setToIdentity();
@@ -122,7 +122,7 @@ public class Map {
 						mat.translate(-size * w, size);
 				}
 			}
-		
+
 			g.setTransform(originalTransform);
 		}
 	}
@@ -135,7 +135,7 @@ public class Map {
 			tileHeight = 1;
 		}
 	}
-	
+
 	public void addColumn(boolean start) {
 		synchronized (resizeLock) {
 			int x = 0;
@@ -158,7 +158,7 @@ public class Map {
 						}
 					} else {
 						Fragment newFrag = fragmentManager.requestFragment(frag.blockX + Fragment.SIZE, frag.blockY);
-						
+
 						if (frag.hasNext) {
 							newFrag.setNext(frag.nextFragment);
 						}
@@ -166,7 +166,7 @@ public class Map {
 						frag.endOfLine = false;
 						frag.setNext(newFrag);
 						frag = newFrag;
-						
+
 					}
 				}
 			}
@@ -206,7 +206,7 @@ public class Map {
 					frag = frag.nextFragment;
 				y = frag.blockY + Fragment.SIZE;
 			}
-			
+
 			tileHeight++;
 			Fragment newFrag = fragmentManager.requestFragment(startNode.nextFragment.blockX, y);
 			Fragment chainFrag = newFrag;
@@ -252,16 +252,16 @@ public class Map {
 			tileWidth--;
 		}
 	}
-	
+
 	public void moveBy(Point2D.Double speed) {
 		moveBy(speed.x, speed.y);
 	}
-	
+
 	public void moveBy(double x, double y) {
 		start.x += x;
 		start.y += y;
 	}
-	
+
 	public void centerOn(long x, long y) {
 		long fragOffsetX = x % Fragment.SIZE;
 		long fragOffsetY = y % Fragment.SIZE;
@@ -279,38 +279,41 @@ public class Map {
 
 			offsetX -= (fragOffsetX)*scale;
 			offsetY -= (fragOffsetY)*scale;
-			
+
 			start.x = offsetX;
 			start.y = offsetY;
-			
+
 			addStart((int)startX, (int)startY);
 		}
 	}
-	
+
 	public void setZoom(double scale) {
 		this.scale = scale;
 	}
-	
+
 	public double getZoom() {
 		return scale;
 	}
-	
+
 	public Point2D.Double getScaled(double oldScale, double newScale, Point p) {
+		if(p == null) {
+		  return new Point2D.Double(start.x, start.y);
+	  }
 		double baseX = p.x - start.x;
 		double scaledX = baseX - (baseX / oldScale) * newScale;
-		
+
 		double baseY = p.y - start.y;
 		double scaledY = baseY - (baseY / oldScale) * newScale;
-		
+
 		return new Point2D.Double(scaledX, scaledY);
 	}
-	
+
 	public void dispose() {
 		synchronized (drawLock) {
 			fragmentManager.reset();
 		}
 	}
-	
+
 	public Fragment getFragmentAt(Point position) {
 		Fragment frag = startNode;
 		Point cornerPosition = new Point(position.x >> Fragment.SIZE_SHIFT, position.y >> Fragment.SIZE_SHIFT);
@@ -324,7 +327,7 @@ public class Map {
 		}
 		return null;
 	}
-	
+
 	public MapObject getObjectAt(Point position, double maxRange) {
 		double x = start.x;
 		double y = start.y;
@@ -341,7 +344,7 @@ public class Map {
 					objPosition.y *= scale;
 					objPosition.x += x;
 					objPosition.y += y;
-					
+
 					double distance = objPosition.distance(position);
 					if (distance < closestDistance) {
 						closestDistance = distance;
@@ -363,7 +366,7 @@ public class Map {
 
 		point.x -= start.x;
 		point.y -= start.y;
-		
+
 		// TODO: int -> double -> int = bad?
 		point.x /= scale;
 		point.y /= scale;
@@ -383,7 +386,7 @@ public class Map {
 				(frag.blockY + Fragment.SIZE > point.y)) {
 				int x = point.x - frag.blockX;
 				int y = point.y - frag.blockY;
-				
+
 				return BiomeLayer.getBiomeNameForFragment(frag, x, y);
 			}
 		}
@@ -400,7 +403,7 @@ public class Map {
 				(frag.blockY + Fragment.SIZE > point.y)) {
 				int x = point.x - frag.blockX;
 				int y = point.y - frag.blockY;
-				
+
 				return BiomeLayer.getBiomeAliasForFragment(frag, x, y);
 			}
 		}
